@@ -7,13 +7,29 @@ from django.contrib.auth.models import User
 
 from .models import Profile
 
+from graphene import relay
+
+from graphene_django.filter import DjangoFilterConnectionField
+
 class UserType(graphene_django.DjangoObjectType):
   class Meta:
     model = User
+  pk = graphene.Int()
+
+  def resolve_pk(self, info):
+    return self.pk
 
 class ProfileType(graphene_django.DjangoObjectType):
   class Meta:
     model = Profile
+    interfaces = (relay.Node,)
+    filter_fields = {
+      "user__username" : ("exact","contains")
+    }
+  pk = graphene.Int()
+
+  def resolve_pk(self, info):
+    return self.pk
 
 class RegisterUserInput(graphene.InputObjectType):
   username = graphene.String()
@@ -36,7 +52,8 @@ class Mutation(graphene.ObjectType):
 class Query(graphene.ObjectType):
   hello = graphene.Field(graphene.String, token=graphene.String(required=True))
   user_info = graphene.Field(UserType, token=graphene.String(required=True))
-  user_profile = graphene.Field(ProfileType, token=graphene.String(required=True))
+  profile = relay.Node.Field(ProfileType)
+  all_profiles = DjangoFilterConnectionField(ProfileType)
 
   def resolve_hello(self, info, **kwargs):
     print(info.context.user.id)
@@ -44,8 +61,5 @@ class Query(graphene.ObjectType):
 
   def resolve_user_info(self, info, **kwargs):
     return info.context.user
-  
-  def resolve_user_profile(self, info, **kwargs):
-    return info.context.user.profile
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

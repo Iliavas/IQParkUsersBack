@@ -39,9 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_filters',
     'users',
     'organisations',
-    'lessons'
+    'lessons',
+    'hyperlinks'
 ]
 GRAPHENE = {
     'SCHEMA': 'evgenApp.schema.schema',

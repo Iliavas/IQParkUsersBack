@@ -22,6 +22,8 @@ class SubjectClassLocal(models.Model):
 
 class Lesson(models.Model):
   type_lesson = models.ForeignKey(SubjectClassLocal, on_delete=models.CASCADE)
+  name = models.TextField(default="")
+  descr = models.TextField(default="")
 
 
 class Materials(models.Model):
@@ -41,8 +43,9 @@ class Task(models.Model):
   theory = models.TextField()
   practise = models.TextField()
   test = models.ForeignKey(Tests, on_delete=models.CASCADE)
-  type = models.ForeignKey(Type, on_delete=models.PROTECT)
+  types = models.ManyToManyField(Type)
   number = models.IntegerField()
+  max_score = models.IntegerField(default=0)
 
 
 
@@ -59,10 +62,13 @@ class Answer(models.Model):
   sheet = models.ForeignKey(AnswerSheet, on_delete=models.CASCADE)
   content = models.TextField()
   number = models.IntegerField()
+  completed = models.BooleanField(default=False)
+  score = models.IntegerField(default=0)
 
 
 @receiver(post_save, sender=Tests)
-def _post_save_receiver(sender, instance, created, **kwargs):
+def _post_save_receiver_(sender, instance, created, **kwargs):
+  print(created, instance, instance.lesson.type_lesson.group.child_set.all())
   if created:
     for child in instance.lesson.type_lesson.group.child_set.all():
       AnswerSheet.objects.create(child=child, completed=False, test=instance)
@@ -71,4 +77,4 @@ def _post_save_receiver(sender, instance, created, **kwargs):
 def _post_save_receiver(sender, instance, created, **kwargs):
   if created:
     for child in instance.test.lesson.type_lesson.group.child_set.all():
-      Answer.objects.create(number=instance.number, sheet=child.answer_sheet_set.all().filter(test=instance.test)[0], content="")
+      Answer.objects.create(number=instance.number, sheet=child.answersheet_set.all().filter(test=instance.test)[0], content="")

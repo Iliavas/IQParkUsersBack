@@ -1,9 +1,15 @@
 import graphene
 
-from .gqlTypes import OrganisationType, RoleType, GroupType
-from .models import Organisation, Role, Group, Teacher, Child
+from .gqlTypes import OrganisationType, RoleType, ChildType, TeacherType, GroupType, OrganisatorType
+from .models import Organisation, Role, Group, Teacher, Child, Organisator
+from lessons.models import SubjectClassLocal
 
 from users.schema import UserType
+from graphene import relay
+
+from django.contrib.auth.models import User
+
+from .mixins import RegModelToOrg, RegModelGroup, DeleteModelGroup
 
 class CreateGroup(graphene.Mutation):
   class Arguments:
@@ -25,25 +31,6 @@ class CreateOrg(graphene.Mutation):
   def mutate(self, info, name, **kwargs):
     return CreateOrg(Org=Organisation.objects.create(name=name))
 
-class RegUserOrg(graphene.Mutation):
-  class Arguments:
-    token = graphene.String()
-    orgName = graphene.String()
-    isTeacher = graphene.Boolean()
-    name = graphene.String(required=False)
-    surname = graphene.String(required=False)
-    midname = graphene.String(required=False)
-  
-  ok = graphene.Boolean()
-
-  def mutate(self, info, token, orgName, isTeacher, **kwargs):
-    org = Organisation.objects.get(name=orgName)
-    if isTeacher:
-      t = Teacher.objects.create(profile=info.context.user.profile, org=org)
-    else:
-      t = Child.objects.create(profile=info.context.user.profile, org=org)
-    return RegUserOrg(ok=True)
-      
 
 
 class AddGroupToOrg(graphene.Mutation):
@@ -57,20 +44,30 @@ class AddGroupToOrg(graphene.Mutation):
     return AddGroupToOrg(group=group)
 
 
-class RegUserGroup(graphene.Mutation):
-  class Arguments:
-    token = graphene.String()
-    orgName = graphene.String()
-    groupName = graphene.String()
-    is_teacher = graphene.Boolean()
-  user = graphene.Field(UserType)
-  def mutate(self, info, token, orgName, groupName, is_teacher, **kwargs):
-    group = Organisation.objects.get(name=orgName).group_set.all().filter(name=groupName)[0]
-    if is_teacher:
-      info.context.user.profile.teacher_set.all().filter(org__name=orgName)[0].groups.add(group)
-    else:
-      info.context.user.profile.child_set.all().filter(org__name=orgName)[0].groups.add(group)
-    return RegUserGroup(info.context.user)
+
+class RegTeacherToOrg(RegModelToOrg):
+  model = Teacher
+  modelType = graphene.Field(TeacherType)
+
+class RegChildToOrg(RegModelToOrg):
+  model = Child
+  modelType =graphene.Field(ChildType)
+
+
+class RegOrganisatorToOrg(RegModelToOrg):
+  model = Organisator
+  modelType = graphene.Field(OrganisatorType)
+
+
+class RegChildGroup(RegModelGroup):
+  model = Child
+  modelType = graphene.Field(ChildType)
+
+
+class DeleteChildGroup(DeleteModelGroup):
+  model = Child
+  modelType = graphene.Field(ChildType)
+
 
 class DeleteGroup(graphene.Mutation):
   class Arguments:
@@ -80,32 +77,49 @@ class DeleteGroup(graphene.Mutation):
   def mutate(self, info, orgName, groupName, **kwargs):
     Organisation.objects.find(name=orgName).objects.groups.all().filter(name=groupName)[0].delete()
 
-class DeleteUserFromGroup(graphene.Mutation):
-  class Arguments:
-    orgName = graphene.String()
-    groupName = graphene.String()
-    token = graphene.String()
-    is_teacher = graphene.Boolean()
-  user = graphene.Field(UserType)
-  def mutate(self, info, orgName, groupName, token, is_teacher, **kwargs):
-    if is_teacher:
-      group = info.context.user.profile.teacher_set.all().filter(org__name=orgName)[0].groups.all().filter(name=groupName)[0]
-      org = info.context.user.profile.teacher_set.all().filter(org__name=orgName)[0]
-      print(group, org)
-      org.groups.remove(group)
-      return DeleteuserFromGroup(info.context.user)
-    else:
-      group = info.context.user.profile.child_set.all().filter(org__name=orgName)[0].groups.all().filter(name=groupName)[0]
-      org = info.context.user.profile.child_set.all().filter(org__name=orgName)[0]
-      print(group, org)
-      org.groups.remove(group)
 
+class RegTeacherClass(graphene.Mutation):
+  class Arguments:
+    teacher_id = graphene.ID()
+    class_id = graphene.ID()
+  
+  teacher = graphene.Field(TeacherType)
+
+  def mutate(self, info, teacher_id, class_id):
+    teacher = Teacher.objects.get(id=teacher_id)
+    class_ = SubjectClassLocal.objects.get(id=class_id)
+
+    class_.teachers.add(teacher)
+    class_.save()
+    return RegTeacherClass(teacher=teacher)
+
+
+class DeleteTeacherClass(graphene.Mutation):
+  class Arguments:
+    teacher_id = graphene.ID()
+    class_id = graphene.ID()
+
+  teacher = graphene.Field(TeacherType)
+
+  def mutate(self, info, teacher_id, class_id):
+    class_ = SubjectClassLocal.objects.get(id=class_id)
+    class_.teachers.filter(id=teacher_id)[0].remove()
+    return DeleteTeacherClass(teacher=Teacher.objects.get(id=teacher_id))
 
 class Mutation(graphene.ObjectType):
   create_org = CreateOrg.Field()
-  reg_user_org = RegUserOrg.Field()
   create_group = CreateGroup.Field()
-  reg_user_to_group = RegUserGroup.Field()
   add_group_to_org = AddGroupToOrg.Field()
   delete_group = DeleteGroup.Field()
-  delete_user_from_group = DeleteUserFromGroup.Field()
+
+  reg_teacher_org = RegTeacherToOrg.Field()
+  reg_child_org = RegChildToOrg.Field()
+
+  reg_child_group = RegChildGroup.Field()
+
+  delete_child_group = DeleteChildGroup.Field()
+
+  reg_teacher_class = RegTeacherClass.Field()
+  delete_teacher_class = DeleteTeacherClass.Field()
+
+  reg_organisator_to_org = RegOrganisatorToOrg.Field()
