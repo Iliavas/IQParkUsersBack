@@ -38,10 +38,14 @@ class RegisterUserInput(graphene.InputObjectType):
 class RegisterUser(graphene.Mutation):
   class Arguments:
     input = RegisterUserInput(required=True)
-  user = graphene.Field(UserType)
+  ok = graphene.Boolean()
 
   def mutate(self, info, input=None):
-    return RegisterUser(User.objects.create_user(username=input.username, password=input.password))
+    try:
+      User.objects.create_user(username=input.username, password=input.password)
+    except:
+      return RegisterUser(ok=False)
+    return RegisterUser(ok=True)
 
 class Mutation(graphene.ObjectType):
   token_auth = graphql_jwt.ObtainJSONWebToken.Field()

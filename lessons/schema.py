@@ -12,99 +12,10 @@ from users.models import Profile
 
 from django.db.models import Model
 
-
-class AnswerType(graphene_django.DjangoObjectType):
-    class Meta:
-        model = Answer
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "sheet" : ("exact",),
-        }
-    pk = graphene.Int()
-
-    def resolve_pk(self, info): return self.pk
-
-class AnswerSheetType(graphene_django.DjangoObjectType):
-    class Meta:
-        model = AnswerSheet
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "test" : ("exact",),
-            "child": ("exact",)
-        }
+from .gqlTypes import *
 
 
-class TaskType(graphene_django.DjangoObjectType):
-    class Meta:
-        model = Task
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "test": ("exact",),
-            "types": ("contains",)
-        }
-    pk = graphene.Int()
-
-    def resolve_pk(self, info):
-        return self.pk
-
-
-class TestsType(graphene_django.DjangoObjectType):
-    class Meta:
-        model = Tests
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "name": ("exact", "contains"),
-            "lesson": ("exact",)
-        }
-    pk = graphene.Int()
-
-    def resolve_pk(self, info):
-        return self.id
-
-
-
-class SubjectType(graphene_django.DjangoObjectType):
-    class Meta:
-        model=Subject
-        interfaces = (relay.Node,)
-
-        filter_fields = {
-            "name" : ("exact", "contains",),
-            "organisation" : ("exact",),
-            "teachers_give" : ("contains",)
-        }
-    pk = graphene.Int()
-
-    def resolve_pk(self, info): return self.pk
-
-
-class LessonType(graphene_django.DjangoObjectType):
-    class Meta:
-        model=Lesson
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "name": ["exact", "contains"],
-            "descr": ["exact", "contains"]
-        }
-    pk = graphene.Int()
-
-    def resolve(self, info):
-        return self.pk
-        
-
-class LocalSubjectType(graphene_django.DjangoObjectType):
-    class Meta:
-        model=SubjectClassLocal
-        interfaces = (relay.Node,)
-        filter_fields = {
-            "name": ("exact", "contains"),
-            "id": ("exact",),
-            "group": ("exact",)
-        }
-    pk = graphene.Int()
-
-    def resolve_pk(self, info):
-        return self.pk
+from graphql_relay.node.node import from_global_id
 
 class CreateLesson(graphene.Mutation):
     class Arguments:
@@ -412,6 +323,23 @@ class AnswerQuestion(graphene.Mutation):
         return AnswerQuestion(answer=answerT)
 
 
+class CreateMaterial(graphene.Mutation):
+    class Arguments:
+        lesson_id = graphene.ID()
+        data = graphene.String()
+        name = graphene.String()
+    
+    material = graphene.Field(Material)
+
+
+    def mutate(self, info, lesson_id, data, name):
+        lessonId = from_global_id(lesson_id)[1]
+        print(lessonId)
+        lesson = Lesson.objects.get(id=lessonId)
+        material = Materials.objects.create(lesson=lesson, data=data, link="google.com", name=name)
+        return CreateMaterial(material=material)
+
+
 class Mutation(graphene.ObjectType):
     create_lesson = CreateLesson.Field()
     update_lesson_registration = UpdateLessonRegistration.Field()
@@ -440,6 +368,9 @@ class Mutation(graphene.ObjectType):
     remove_subject_from_teacher = RemoveSubjectFromTeacher.Field()
 
     answer_question = AnswerQuestion.Field()
+
+
+    create_material = CreateMaterial.Field()
 
 class Query(graphene.ObjectType):
 

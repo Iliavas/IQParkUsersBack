@@ -24,11 +24,16 @@ class Lesson(models.Model):
   type_lesson = models.ForeignKey(SubjectClassLocal, on_delete=models.CASCADE)
   name = models.TextField(default="")
   descr = models.TextField(default="")
+  content = models.TextField(default="")
+  time_lesson = models.DateTimeField(auto_now=True)
 
 
 class Materials(models.Model):
   link = models.URLField()
   name = models.CharField(max_length=100, blank=True)
+  data = models.TextField(blank=True)
+  Type = models.CharField(max_length=100, default="link")
+  lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, default=3)
 
 
 class Tests(models.Model):
