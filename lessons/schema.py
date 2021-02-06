@@ -24,11 +24,12 @@ class CreateLesson(graphene.Mutation):
         subject = graphene.ID()
     
     ok = graphene.Boolean()
+    lesson = graphene.Field(LessonType)
 
     def mutate(self, info, name, descr, subject):
-        Lesson.objects.create(name=name, descr=descr, type_lesson=
-            SubjectClassLocal.objects.get(pk=subject))
-        return CreateLesson(ok=True)
+        lesson = Lesson.objects.create(name=name, descr=descr, type_lesson=
+            SubjectClassLocal.objects.get(id=from_global_id(subject)[1]))
+        return CreateLesson(ok=True, lesson=lesson)
 
 class UpdateLessonRegistration(graphene.Mutation):
     class Arguments:
@@ -83,13 +84,14 @@ class updateTestRegistration(graphene.Mutation):
     test = graphene.Field(TestsType)
 
     def mutate(self, info, test_id, name=None, deadline=None):
-        test = Tests.objects.get(id=test_id)
+        test = Tests.objects.get(id=from_global_id(test_id)[1])
         name_changed = test.name
         deadline_changed = test.deadline
         if name != None: name_changed = name
         if deadline != None : deadline_changed = deadline
         test.name = name_changed
         test.deadline = deadline_changed
+        test.save()
         return updateTestRegistration(test)
 from collections.abc import Mapping
 
@@ -99,7 +101,7 @@ class deleteTest(graphene.Mutation):
     ok = graphene.Boolean()
 
     def mutate(self, info, test_id):
-        test = Tests.objects.get(id=test_id)
+        test = Tests.objects.get(id=from_global_id(test_id)[1])
         test.delete()
         return deleteTest(ok=True)
 
@@ -170,7 +172,7 @@ class updateTask(graphene.Mutation):
             "practise": [practise, task.practise],
             "number": [number, task.number],
             "max_score": [max_score, task.max_score],
-            "Type": [taskType(from_global_id(Type)), task.Type],
+            "Type": [taskType(from_global_id(Type)[1]), task.Type],
             "is_autoCheck": [autoCheck, task.is_autoCheck],
             "autoCheckData": [autoCheckData, task.autoCheckData],
             "is_timing": [is_time, task.is_timing],
