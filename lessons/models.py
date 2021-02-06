@@ -44,14 +44,26 @@ class Tests(models.Model):
 class Type(models.Model):
   name = models.TextField(max_length=150)
 
+
+class TaskType(models.Model):
+  name = models.TextField()
+
 class Task(models.Model):
   theory = models.TextField()
   practise = models.TextField()
-  test = models.ForeignKey(Tests, on_delete=models.CASCADE)
+  test = models.ManyToManyField(Tests)
   types = models.ManyToManyField(Type)
   number = models.IntegerField()
   max_score = models.IntegerField(default=0)
+  is_timing = models.BooleanField(default=False)
+  time = models.IntegerField(default=30)
+  Type = models.ForeignKey(TaskType, on_delete=models.CASCADE)
+  is_autoCheck = models.BooleanField(default=False)
+  autoCheckData = models.TextField(blank=True)
 
+
+
+  
 
 
 class Theme(models.Model):
@@ -78,8 +90,8 @@ def _post_save_receiver_(sender, instance, created, **kwargs):
     for child in instance.lesson.type_lesson.group.child_set.all():
       AnswerSheet.objects.create(child=child, completed=False, test=instance)
 
-@receiver(post_save, sender=Task)
+'''@receiver(post_save, sender=Task)
 def _post_save_receiver(sender, instance, created, **kwargs):
   if created:
     for child in instance.test.lesson.type_lesson.group.child_set.all():
-      Answer.objects.create(number=instance.number, sheet=child.answersheet_set.all().filter(test=instance.test)[0], content="")
+      Answer.objects.create(number=instance.number, sheet=child.answersheet_set.all().filter(test=instance.test)[0], content="")'''

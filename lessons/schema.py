@@ -38,7 +38,7 @@ class UpdateLessonRegistration(graphene.Mutation):
     ok = graphene.Boolean()
 
     def mutate(self, info, id, descr=None, name=None):
-        lesson = Lesson.objects.get(id=id) or None
+        lesson = Lesson.objects.get(id=from_global_id(id)[1]) or None
         if lesson == None: return UpdateLessonRegistration(ok=False)
         descr_upd = lesson.descr
         name_upd = lesson.name
@@ -71,7 +71,7 @@ class CreateTest(graphene.Mutation):
     test = graphene.Field(TestsType)
 
     def mutate(self, info, lesson_id, name, deadline=None):
-        lesson = Lesson.objects.get(id=lesson_id)
+        lesson = Lesson.objects.get(id=from_global_id(lesson_id)[1])
         t = Tests.objects.create(name=name, lesson=lesson, deadline=datetime.datetime.now())
         return CreateTest(test=t)
 
@@ -129,17 +129,23 @@ class createTask(graphene.Mutation):
         practise = graphene.String()
         number = graphene.Int()
         max_score = graphene.Int()
+        Type = graphene.String()
     
     task = graphene.Field(TaskType)
 
-    def mutate(self, info, test_id, theory, practise, number, max_score):
+    def mutate(self, info, test_id, theory, practise, number, max_score, Type):
+        task = Tests.objects.get(id=from_global_id(test_id)[1])
+        print(task)
         m = createModel(model=Task, fields = {
-            "test": Tests.objects.get(id=test_id),
             "theory": theory,
             "practise": practise,
             "number": number,
-            "max_score": max_score
+            "max_score": max_score,
+            "Type" : taskType(id=from_global_id(Type)[1])
             })
+        print(m)
+        m.test.set([task])
+        m.save()
         return createTask(task=m)
 
 class updateTask(graphene.Mutation):
@@ -149,15 +155,26 @@ class updateTask(graphene.Mutation):
         practise = graphene.String()
         number = graphene.Int()
         max_score = graphene.Int()
+        Type = graphene.ID()
+        autoCheck = graphene.Boolean()
+        autoCheckData = graphene.String()
+        is_time = graphene.Boolean()
+        time = graphene.Int()
     task = graphene.Field(TaskType)
 
-    def mutate(self, info, task_id, theory=None, practise=None, number=None, max_score=None):
-        task = Task.objects.get(id=task_id)
+    def mutate(self, info, task_id, theory=None, practise=None, number=None, max_score=None, 
+            Type=None, autoCheck=None, autoCheckData=None, is_time=None, time=None):
+        task = Task.objects.get(id=from_global_id(task_id)[1])
         m = updateModel(Task, task, {
             "theory": [theory, task.theory],
             "practise": [practise, task.practise],
             "number": [number, task.number],
-            "max_score": [max_score, task.max_score]
+            "max_score": [max_score, task.max_score],
+            "Type": [taskType(from_global_id(Type)), task.Type],
+            "is_autoCheck": [autoCheck, task.is_autoCheck],
+            "autoCheckData": [autoCheckData, task.autoCheckData],
+            "is_timing": [is_time, task.is_timing],
+            "time" : [time, task.time]
         })
         return updateTask(task=m)
 
@@ -328,16 +345,50 @@ class CreateMaterial(graphene.Mutation):
         lesson_id = graphene.ID()
         data = graphene.String()
         name = graphene.String()
+        lessonType = graphene.String()
     
     material = graphene.Field(Material)
 
 
-    def mutate(self, info, lesson_id, data, name):
+    def mutate(self, info, lesson_id, data, name, lessonType):
         lessonId = from_global_id(lesson_id)[1]
         print(lessonId)
         lesson = Lesson.objects.get(id=lessonId)
-        material = Materials.objects.create(lesson=lesson, data=data, link="google.com", name=name)
+        material = Materials.objects.create(lesson=lesson, data=data, link="google.com", name=name, Type=lessonType)
         return CreateMaterial(material=material)
+
+
+class DeleteMaterial(graphene.Mutation):
+    class Arguments:
+        material_id = graphene.ID()
+    
+    ok = graphene.Boolean()
+
+
+    def mutate(self, info, material_id):
+        material_id = from_global_id(material_id)[1]
+
+        Materials.objects.get(id=material_id).delete()
+        return DeleteMaterial(ok=True)
+
+
+class ChangeMaterail(graphene.Mutation):
+    class Arguments:
+        material_id = graphene.ID()
+        data = graphene.String()
+        name = graphene.String()
+    
+    material = graphene.Field(Material)
+
+
+    def mutate(self, info, material_id, data, name):
+        material_id = from_global_id(material_id)[1]
+        material = Materials.objects.get(id=material_id)
+        material.name = name or material.name
+        material.data = data or material.data
+        material.save()
+        return ChangeMaterail(material=material)
+
 
 
 class Mutation(graphene.ObjectType):
@@ -371,6 +422,8 @@ class Mutation(graphene.ObjectType):
 
 
     create_material = CreateMaterial.Field()
+    deleteMaterial = DeleteMaterial.Field()
+    changeMaterial = ChangeMaterail.Field()
 
 class Query(graphene.ObjectType):
 
@@ -380,8 +433,7 @@ class Query(graphene.ObjectType):
     all_subject = DjangoFilterConnectionField(SubjectType)
     subject = relay.Node.Field(SubjectType)
 
-    task = relay.Node.Field(TaskType)
-    all_task = DjangoFilterConnectionField(TaskType)
+
 
     answer_sheet = relay.Node.Field(AnswerSheetType)
     all_answer_sheet = DjangoFilterConnectionField(AnswerSheetType)
@@ -394,5 +446,17 @@ class Query(graphene.ObjectType):
 
     subject_class = relay.Node.Field(LocalSubjectType)
     subject_classes = DjangoFilterConnectionField(LocalSubjectType)
+
+
+    materials = DjangoFilterConnectionField(Material)
+    material = relay.Node.Field(Material)
+
+    gettaskType = relay.Node.Field(TaskTypeType)
+    taskTypes = DjangoFilterConnectionField(TaskTypeType)
+
+
+    tasks = DjangoFilterConnectionField(TaskType)
+    task = relay.Node.Field(TaskType)
+
 
 schema = graphene.Schema(query=Query)

@@ -1,7 +1,7 @@
 import graphene
 import graphene_django
 
-from .models import Subject, Lesson, SubjectClassLocal, Tests, Task, AnswerSheet, Answer, Materials
+from .models import Subject, Lesson, SubjectClassLocal, Tests, Task, AnswerSheet, Answer, Materials, TaskType as taskType
 from organisations.gqlTypes import ChildType, TeacherType
 
 from organisations.models import Organisation, Group, Child, Teacher
@@ -16,6 +16,11 @@ from django.db.models import Model
 class Material(graphene_django.DjangoObjectType):
     class Meta:
         model = Materials
+        interfaces = (relay.Node,)
+        filter_fields = {
+            "name": ("exact",)
+        }
+
 
 class AnswerType(graphene_django.DjangoObjectType):
     class Meta:
@@ -144,3 +149,8 @@ class LocalSubjectType(graphene_django.DjangoObjectType):
         return len(self.lesson_set.all())
 
 
+class TaskTypeType(graphene_django.DjangoObjectType):
+    class Meta:
+        model = taskType
+        interfaces = (relay.Node,)
+        filter_fields = {}
