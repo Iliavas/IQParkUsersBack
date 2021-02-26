@@ -40,6 +40,8 @@ class Tests(models.Model):
   name = models.CharField(max_length=150)
   deadline = models.DateTimeField()
   lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
+  is_timing = models.BooleanField(default=False)
+  time_sec = models.IntegerField(default=300)
 
 class Type(models.Model):
   name = models.TextField(max_length=150)
@@ -47,6 +49,10 @@ class Type(models.Model):
 
 class TaskType(models.Model):
   name = models.TextField()
+
+
+  def __str__(self) :
+    return self.name
 
 class Task(models.Model):
   theory = models.TextField()
@@ -81,17 +87,3 @@ class Answer(models.Model):
   number = models.IntegerField()
   completed = models.BooleanField(default=False)
   score = models.IntegerField(default=0)
-
-
-@receiver(post_save, sender=Tests)
-def _post_save_receiver_(sender, instance, created, **kwargs):
-  print(created, instance, instance.lesson.type_lesson.group.child_set.all())
-  if created:
-    for child in instance.lesson.type_lesson.group.child_set.all():
-      AnswerSheet.objects.create(child=child, completed=False, test=instance)
-
-'''@receiver(post_save, sender=Task)
-def _post_save_receiver(sender, instance, created, **kwargs):
-  if created:
-    for child in instance.test.lesson.type_lesson.group.child_set.all():
-      Answer.objects.create(number=instance.number, sheet=child.answersheet_set.all().filter(test=instance.test)[0], content="")'''

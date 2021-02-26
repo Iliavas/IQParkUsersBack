@@ -28,6 +28,7 @@ class AnswerType(graphene_django.DjangoObjectType):
         interfaces = (relay.Node,)
         filter_fields = {
             "sheet" : ("exact",),
+            "number" : ("exact",)
         }
     pk = graphene.Int()
 
@@ -43,13 +44,15 @@ class AnswerSheetType(graphene_django.DjangoObjectType):
         }
 
 
+
 class TaskType(graphene_django.DjangoObjectType):
     class Meta:
         model = Task
         interfaces = (relay.Node,)
         filter_fields = {
             "test": ("exact",),
-            "types": ("contains",)
+            "types": ("contains",),
+            "number":("exact",)
         }
     pk = graphene.Int()
 
@@ -67,6 +70,11 @@ class TestsType(graphene_django.DjangoObjectType):
         }
     pk = graphene.Int()
     taskLen = graphene.Int()
+
+    answerLen = graphene.Int()
+
+    def resolve_answerLen(self, info):
+        return len(self.answersheet_set.all())
 
     def resolve_pk(self, info):
         return self.id
@@ -152,5 +160,12 @@ class LocalSubjectType(graphene_django.DjangoObjectType):
 class TaskTypeType(graphene_django.DjangoObjectType):
     class Meta:
         model = taskType
+        interfaces = (relay.Node,)
+        filter_fields = {}  
+
+
+class AnswerSheetType(graphene_django.DjangoObjectType):
+    class Meta:
+        model = AnswerSheet
         interfaces = (relay.Node,)
         filter_fields = {}

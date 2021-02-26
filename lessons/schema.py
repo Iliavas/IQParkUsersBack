@@ -17,6 +17,45 @@ from .gqlTypes import *
 
 from graphql_relay.node.node import from_global_id
 
+class CreateAnwerSheet(graphene.Mutation):
+    class Arguments:
+        child = graphene.ID()
+        test = graphene.ID()
+    
+    answer = graphene.Field(AnswerSheetType)
+
+    def mutate(self, info, child, test):
+        answerSheet = AnswerSheet.objects.create(
+            test=Tests.objects.get(id=from_global_id(test)[1]),
+            child=Child.objects.get(id=from_global_id(child)[1]),
+            completed=False
+        )
+        return CreateAnwerSheet(answer=answerSheet)
+
+
+class CreateAnswer(graphene.Mutation):
+    class Arguments:
+        sheet = graphene.ID()
+        data = graphene.String()
+        number = graphene.Int()
+    
+    answer = graphene.Field(AnswerType)
+
+    def mutate(self, info, sheet, data, number):
+        print(number,sheet, "number")
+        sheet = AnswerSheet.objects.get(id=from_global_id(sheet)[1])
+        candidate = Answer.objects.filter(sheet__id=sheet.id, number=number)
+        print(candidate)
+        if len(candidate):
+            candidate.all().delete()
+        answer = Answer.objects.create(
+            sheet = sheet,
+            content = data,
+            number = number,
+        )
+        return CreateAnswer(answer=answer)
+
+
 class CreateLesson(graphene.Mutation):
     class Arguments:
         name = graphene.String()
@@ -27,6 +66,7 @@ class CreateLesson(graphene.Mutation):
     lesson = graphene.Field(LessonType)
 
     def mutate(self, info, name, descr, subject):
+        print(from_global_id(subject), subject)
         lesson = Lesson.objects.create(name=name, descr=descr, type_lesson=
             SubjectClassLocal.objects.get(id=from_global_id(subject)[1]))
         return CreateLesson(ok=True, lesson=lesson)
@@ -57,7 +97,7 @@ class DeleteLesson(graphene.Mutation):
     ok = graphene.Boolean()
 
     def mutate(self, info, id):
-        lesson = Lesson.objects.get(id=id)
+        lesson = Lesson.objects.get(id=from_global_id(id)[1])
         if lesson == None: return DeleteLesson(ok=False)
         lesson.delete()
         return DeleteLesson(ok=True)
@@ -137,7 +177,7 @@ class createTask(graphene.Mutation):
 
     def mutate(self, info, test_id, theory, practise, number, max_score, Type):
         task = Tests.objects.get(id=from_global_id(test_id)[1])
-        print(task)
+        print(from_global_id(Type))
         m = createModel(model=Task, fields = {
             "theory": theory,
             "practise": practise,
@@ -170,15 +210,30 @@ class updateTask(graphene.Mutation):
         m = updateModel(Task, task, {
             "theory": [theory, task.theory],
             "practise": [practise, task.practise],
-            "number": [number, task.number],
             "max_score": [max_score, task.max_score],
             "Type": [taskType(from_global_id(Type)[1]), task.Type],
             "is_autoCheck": [autoCheck, task.is_autoCheck],
             "autoCheckData": [autoCheckData, task.autoCheckData],
             "is_timing": [is_time, task.is_timing],
-            "time" : [time, task.time]
+            "time" : [time, task.time],
         })
         return updateTask(task=m)
+
+class ScoringTasks(graphene.Mutation):
+    class Arguments:
+        answerSheetId = graphene.ID()
+        score = graphene.Int()
+        number = graphene.Int()
+    
+    answer = graphene.Field(AnswerType) 
+
+
+    def mutate(self, info, answerSheetId, score=0, number=0):
+        answer = AnswerSheet.objects.get(id=from_global_id(answerSheetId)[1]).answer_set.all().filter(number=number)[0]
+        answer.score = score
+        answer.completed = True
+        answer.save()
+        return ScoringTasks(answer=answer)
 
 
 class deleteTask(graphene.Mutation):
@@ -427,6 +482,14 @@ class Mutation(graphene.ObjectType):
     deleteMaterial = DeleteMaterial.Field()
     changeMaterial = ChangeMaterail.Field()
 
+
+    create_anwer_sheet = CreateAnwerSheet.Field()
+
+    create_answer = CreateAnswer.Field()
+
+
+    scoring_tasks = ScoringTasks.Field()
+
 class Query(graphene.ObjectType):
 
     all_test = DjangoFilterConnectionField(TestsType)
@@ -459,6 +522,8 @@ class Query(graphene.ObjectType):
 
     tasks = DjangoFilterConnectionField(TaskType)
     task = relay.Node.Field(TaskType)
+
+    
 
 
 schema = graphene.Schema(query=Query)

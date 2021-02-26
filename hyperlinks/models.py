@@ -16,15 +16,3 @@ class HyperLink(models.Model):
 #@receiver(signal=post_save, sender=Organisator)
 #def org_recieve(sender, instance, **kwargs):
 #    HyperLink.objects.create(organ=instance)
-
-
-
-@receiver(signal=post_save, sender=Child)
-def child_recieve(sender, instance, **kwargs):
-    HyperLink.objects.create(child=instance)
-
-
-
-@receiver(signal=post_save, sender=Teacher)
-def teacher_recieve(sender, instance, **kwargs):
-    HyperLink.objects.create(teacher=instance)
